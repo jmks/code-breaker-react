@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Codebreaker! - Can you crack the code?</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" />
+    <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.3/JSXTransformer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.3/react.js"></script>
+  </head>
+  <body>
+    <div id="root" class="container"></div>
+
+    <script type="text/jsx">
+      var GuessHistory = React.createClass({
+        guessTable: function() {
+          if (this.props.guessHistory.length === 0) {
+            return (<i>No guesses yet!</i>);
+          }
+
+          var guessRows = this.props.guessHistory.map(function(data, index) {
+            return (
+              <tr>
+                <td>{index}</td>
+                <td>{data.guess}</td>
+                <td>{data.score}</td>
+              </tr>
+            );
+          });
+
+          return (
+            <table className="table">
+              <thead>
+                <td>#</td>
+                <td>Guess</td>
+                <td>Score</td>
+              </thead>
+
+              <tbody>
+                {guessRows}
+              </tbody>
+            </table>
+          )
+        },
+        render: function() {
+          return (
+            <div className="well">
+              {this.guessTable()}
+            </div>
+          );
+        },
+      });
+
+      var GuessForm = React.createClass({
+        getInitialState: function() {
+          return {
+            codeGuess: "",
+          };
+        },
+        handleGuess: function(e) {
+          e.preventDefault();
+
+          // TODO data validation
+
+          this.props.makeGuess(this.state.codeGuess);
+        },
+        changeGuess: function(e) {
+          // TODO limit codeGuess length
+          this.setState({ codeGuess: e.target.value });
+        },
+        render: function() {
+          return (
+            <div className="well">
+              <form onSubmit={this.handleGuess}>
+                <div className="form-group">
+                  <div className="col-xs-8">
+                    <input name="guess"
+                           type="text" className="form-control"
+                           onChange={this.changeGuess} />
+                  </div>
+
+                  <button className="btn btn-primary">Guess</button>
+                </div>
+              </form>
+            </div>
+          );
+        },
+      });
+
+      var GuessPanel = React.createClass({
+        render: function() {
+          if (!this.props.is("playing")) return null;
+
+          var guessesRemaining  = this.props.maxGuesses - this.props.guessHistory.length;
+          var pluralizedGuesses = guessesRemaining > 1 ? "guesses" : "guess";
+
+          return (
+            <div id="guess-panel">
+              <div>
+                <GuessHistory guessHistory={this.props.guessHistory} />
+              </div>
+
+              <div>
+                <h4>{guessesRemaining} {pluralizedGuesses} remaining.</h4>
+                <GuessForm makeGuess={this.props.makeGuess} />
+              </div>
+            </div>
+          );
+        },
+      });
+
+      var Banner = React.createClass({
+        render: function() {
+          var subBanner;
+          if (this.props.is("starting")) {
+            subBanner = (<button className="btn btn-primary btn-lg" onClick={this.props.startGame}>Play</button>);
+          }
+
+          return (
+            <div id="banner">
+              <h1>Welcome to Codebreaker!</h1>
+              <br />
+              { subBanner }
+              <hr />
+            </div>
+          );
+        }
+      });
+
+      var ResultPanel = React.createClass({
+        render: function() {
+          if (!this.props.is("done")) return null;
+
+          var message;
+          if (this.props.winStatus) {
+            message = "Winner! You cracked the code " + this.props.secretCode;
+          } else {
+            message = "Incorrect! The secret code was " + this.props.secretCode;
+          }
+
+          return (
+            <div className="well text-center">
+              <p><strong>{message}</strong></p>
+              <button className="btn btn-primary btn-lg" onClick={this.props.restartGame}>Play Again?</button>
+            </div>
+          );
+        }
+      });
+
+      var Main = React.createClass({
+        getInitialState: function() {
+          return {
+            gameState: "starting",
+            secretCode: this.generateSecretCode(),
+            guessHistory: [],
+            winStatus: null,
+            maxGuesses: 10,
+          };
+        },
+        generateSecretCode: function() {
+          var number = Math.round(Math.random() * 100000);
+          while (number >= 100000) {
+            number = Math.round(Math.random() * 100000)
+          }
+          return number;
+        },
+        is: function(state) {
+          return this.state.gameState === state;
+        },
+        makeGuess: function(guess) {
+          var score    = this.scoreGuess(guess);
+          var winner   = score === "+++++";
+          var gameOver = this.state.guessHistory.length + 1 >= this.state.maxGuesses;
+          var newState = (winner || gameOver) ? "done" : this.state.gameState;
+
+          console.log("Gueess " + guess + " scored " + score + " on " + this.state.secretCode);
+          console.log("Gamestate is now " + newState + " with winning " + winner);
+
+          this.setState({
+            guessHistory: this.state.guessHistory.concat({
+              guess: guess,
+              score: score
+            }),
+            gameState: newState,
+            winStatus: winner,
+          });
+        },
+        scoreGuess: function(guess) {
+          var totalMatches   = this.scoreTotalMatches(guess);
+          var exactMatches   = this.scoreExactMatches(guess);
+          var partialMatches = totalMatches - exactMatches;
+
+          return this.buildScore(exactMatches, partialMatches);
+        },
+        scoreTotalMatches: function(guess) {
+          var secret = this.state.secretCode.toString().split("");
+
+          return guess.split("").reduce(function(acc, letter) {
+            if (secret.indexOf(letter) >= 0) {
+              secret.splice(secret.indexOf(letter), 1);
+              return acc + 1;
+            } else {
+              return acc;
+            }
+          }, 0);
+        },
+        scoreExactMatches: function(guess) {
+          var secret = this.state.secretCode.toString();
+
+          return guess.split("").reduce(function(acc, letter, index) {
+            return (letter === secret[index]) ? acc + 1 : acc;
+          }, 0);
+        },
+        buildScore: function(exactMatches, partialMatches) {
+          var score = "";
+
+          for (var i = 0; i < exactMatches; i++) {
+            score += "+";
+          }
+
+          for (var i = 0; i < partialMatches; i++) {
+            score += "-";
+          }
+
+          return score;
+        },
+        startGame: function() {
+          this.setState({
+            gameState: "playing",
+            secretCode: this.generateSecretCode(),
+          });
+        },
+        restartGame: function() {
+          this.setState({
+            gameState: "playing",
+            secretCode: this.generateSecretCode(),
+            winStatus: null,
+            guessHistory: [],
+          });
+        },
+        render: function() {
+          return(
+            <div className="text-center">
+              <Banner is={this.is}
+                      startGame={this.startGame} />
+              <GuessPanel is={this.is}
+                          makeGuess={this.makeGuess}
+                          guessHistory={this.state.guessHistory}
+                          maxGuesses={this.state.maxGuesses} />
+              <ResultPanel is={this.is}
+                           winStatus={this.state.winStatus}
+                           secretCode={this.state.secretCode}
+                           restartGame={this.restartGame} />
+            </div>
+          )
+        }
+      });
+
+      var element = React.createElement(Main);
+      React.render(element, document.getElementById("root"));
+    </script>
+  </body>
+</html>
