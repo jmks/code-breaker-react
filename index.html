@@ -176,9 +176,6 @@
           var gameOver = this.state.guessHistory.length + 1 >= this.state.maxGuesses;
           var newState = (winner || gameOver) ? "done" : this.state.gameState;
 
-          console.log("Gueess " + guess + " scored " + score + " on " + this.state.secretCode);
-          console.log("Gamestate is now " + newState + " with winning " + winner);
-
           this.setState({
             guessHistory: this.state.guessHistory.concat({
               guess: guess,
