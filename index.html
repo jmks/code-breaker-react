@@ -46,6 +46,8 @@
           )
         },
         render: function() {
+          if (this.props.is("starting")) return null;
+
           return (
             <div className="well">
               {this.guessTable()}
@@ -73,6 +75,8 @@
           });
         },
         render: function() {
+          if (!this.props.is("playing")) return null;
+
           return (
             <div className="well">
               <form onSubmit={this.handleGuess}>
@@ -94,20 +98,20 @@
 
       var GuessPanel = React.createClass({
         render: function() {
-          if (!this.props.is("playing")) return null;
+          if (this.props.is("starting")) return null;
 
           var guessesRemaining  = this.props.maxGuesses - this.props.guessHistory.length;
           var pluralizedGuesses = guessesRemaining > 1 ? "guesses" : "guess";
 
           return (
             <div id="guess-panel">
-              <div>
-                <GuessHistory guessHistory={this.props.guessHistory} />
-              </div>
-
+              <GuessHistory is={this.props.is}
+                            guessHistory={this.props.guessHistory} />
               <div>
                 <h4>{guessesRemaining} {pluralizedGuesses} remaining.</h4>
-                <GuessForm makeGuess={this.props.makeGuess}
+
+                <GuessForm is={this.props.is}
+                           makeGuess={this.props.makeGuess}
                            secretCodeLength={this.props.secretCodeLength} />
               </div>
             </div>
@@ -115,18 +119,89 @@
         },
       });
 
+      var GameConfiguration = React.createClass({
+        getInitialState: function() {
+          return {
+            secretCodeLength: null,
+            maxGuesses: null,
+          };
+        },
+        handleSubmit: function(e) {
+          e.preventDefault();
+          this.props.buttonAction(this.state.secretCodeLength, this.state.maxGuesses);
+        },
+        changeSecretCodeLength: function(e) {
+          this.setState({ secretCodeLength: parseInt(e.target.value) });
+        },
+        changeMaxGuesses: function(e) {
+          this.setState({ maxGuesses: parseInt(e.target.value) });
+        },
+        render: function() {
+          var component = this;
+          var secretCodeOptions = [4, 5, 6, 7].map(function(value) {
+            return (
+              <option value={value}>{value}</option>
+            );
+          });
+
+          var maxGuessOptions = [8, 10, 12, 14].map(function(value) {
+            return (
+              <option value={value}>
+                {value}
+              </option>
+            );
+          });
+
+          return (
+            <div>
+              <form className="form form-horizontal"
+                    onSubmit={this.handleSubmit}>
+                <div className="form-group">
+                  <label className="control-label col-sm-4">Code Length</label>
+                  <div className="col-sm-4">
+                    <select className="form-control"
+                            defaultValue={this.props.initialSecretCodeLength}
+                            onChange={this.changeSecretCodeLength}>
+                      {secretCodeOptions}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="control-label col-sm-4">Number of Guesses</label>
+                  <div className="col-sm-4">
+                    <select className="form-control"
+                            defaultValue={this.props.initialMaxGuesses}
+                            onChange={this.changeMaxGuesses}>
+                      {maxGuessOptions}
+                    </select>
+                  </div>
+                </div>
+
+                <button className="btn btn-primary btn-lg">
+                  {this.props.buttonText}
+                </button>
+              </form>
+            </div>
+          );
+        },
+      });
+
       var Banner = React.createClass({
         render: function() {
-          var subBanner;
+          var config;
           if (this.props.is("starting")) {
-            subBanner = (<button className="btn btn-primary btn-lg" onClick={this.props.startGame}>Play</button>);
+            config = <GameConfiguration buttonText="Start Game"
+                                        buttonAction={this.props.startGame}
+                                        initialSecretCodeLength={this.props.secretCodeLength}
+                                        initialMaxGuesses={this.props.maxGuesses} />
           }
 
           return (
             <div id="banner">
               <h1>Welcome to Codebreaker!</h1>
               <br />
-              { subBanner }
+              { config }
               <hr />
             </div>
           );
@@ -146,8 +221,12 @@
 
           return (
             <div className="well text-center">
-              <p><strong>{message}</strong></p>
-              <button className="btn btn-primary btn-lg" onClick={this.props.restartGame}>Play Again?</button>
+              <h3>{message}</h3>
+              <br />
+              <GameConfiguration buttonText="Play Again?"
+                                 buttonAction={this.props.restartGame}
+                                 initialSecretCodeLength={this.props.secretCodeLength}
+                                 initialMaxGuesses={this.props.maxGuesses} />
             </div>
           );
         }
@@ -234,25 +313,31 @@
 
           return score;
         },
-        startGame: function() {
+        startGame: function(secretCodeLength, maxGuesses) {
           this.setState({
             gameState: "playing",
+            secretCodeLength: secretCodeLength || this.state.secretCodeLength,
             secretCode: this.generateSecretCode(),
+            maxGuesses: maxGuesses || this.state.maxGuesses,
           });
         },
-        restartGame: function() {
+        restartGame: function(secretCodeLength, maxGuesses) {
           this.setState({
             gameState: "playing",
             secretCode: this.generateSecretCode(),
             winStatus: null,
             guessHistory: [],
+            secretCodeLength: secretCodeLength || this.state.secretCodeLength,
+            maxGuesses: maxGuesses || this.state.maxGuesses,
           });
         },
         render: function() {
           return(
             <div className="text-center">
               <Banner is={this.is}
-                      startGame={this.startGame} />
+                      startGame={this.startGame}
+                      secretCodeLength={this.state.secretCodeLength}
+                      maxGuesses={this.state.maxGuesses} />
               <GuessPanel is={this.is}
                           makeGuess={this.makeGuess}
                           guessHistory={this.state.guessHistory}
@@ -261,7 +346,9 @@
               <ResultPanel is={this.is}
                            winStatus={this.state.winStatus}
                            secretCode={this.state.secretCode}
-                           restartGame={this.restartGame} />
+                           restartGame={this.restartGame}
+                           maxGuesses={this.state.maxGuesses}
+                           secretCodeLength={this.state.secretCodeLength}/>
             </div>
           )
         }
