@@ -24,7 +24,7 @@
           var guessRows = this.props.guessHistory.map(function(data, index) {
             return (
               <tr>
-                <td>{index}</td>
+                <td>{index + 1}</td>
                 <td>{data.guess}</td>
                 <td>{data.score}</td>
               </tr>
@@ -68,8 +68,9 @@
           this.props.makeGuess(this.state.codeGuess);
         },
         changeGuess: function(e) {
-          // TODO limit codeGuess length
-          this.setState({ codeGuess: e.target.value });
+          this.setState({
+            codeGuess: e.target.value.substring(0, this.props.secretCodeLength)
+          });
         },
         render: function() {
           return (
@@ -79,6 +80,7 @@
                   <div className="col-xs-8">
                     <input name="guess"
                            type="text" className="form-control"
+                           value={this.state.codeGuess}
                            onChange={this.changeGuess} />
                   </div>
 
@@ -105,7 +107,8 @@
 
               <div>
                 <h4>{guessesRemaining} {pluralizedGuesses} remaining.</h4>
-                <GuessForm makeGuess={this.props.makeGuess} />
+                <GuessForm makeGuess={this.props.makeGuess}
+                           secretCodeLength={this.props.secretCodeLength} />
               </div>
             </div>
           );
@@ -154,25 +157,32 @@
         getInitialState: function() {
           return {
             gameState: "starting",
-            secretCode: this.generateSecretCode(),
+            secretCodeLength: 4,
+            secretCode: null,
             guessHistory: [],
             winStatus: null,
             maxGuesses: 10,
           };
         },
         generateSecretCode: function() {
-          var number = Math.round(Math.random() * 100000);
-          while (number >= 100000) {
-            number = Math.round(Math.random() * 100000)
+          // random int in range [min, max]
+          var randBetween = function(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+          };
+
+          var code = [];
+          for (var i = 0; i < this.state.secretCodeLength; i++) {
+            code.push(randBetween(0, 9));
           }
-          return number;
+
+          return code.join("");
         },
         is: function(state) {
           return this.state.gameState === state;
         },
         makeGuess: function(guess) {
           var score    = this.scoreGuess(guess);
-          var winner   = score === "+++++";
+          var winner   = this.scoreExactMatches(guess) === this.state.secretCodeLength;
           var gameOver = this.state.guessHistory.length + 1 >= this.state.maxGuesses;
           var newState = (winner || gameOver) ? "done" : this.state.gameState;
 
@@ -246,7 +256,8 @@
               <GuessPanel is={this.is}
                           makeGuess={this.makeGuess}
                           guessHistory={this.state.guessHistory}
-                          maxGuesses={this.state.maxGuesses} />
+                          maxGuesses={this.state.maxGuesses}
+                          secretCodeLength={this.state.secretCodeLength} />
               <ResultPanel is={this.is}
                            winStatus={this.state.winStatus}
                            secretCode={this.state.secretCode}
