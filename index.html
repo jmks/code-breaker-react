@@ -60,14 +60,23 @@
         getInitialState: function() {
           return {
             codeGuess: "",
+            message: null,
           };
         },
         handleGuess: function(e) {
           e.preventDefault();
 
-          // TODO data validation
+          if (this.state.codeGuess.length !== this.props.secretCodeLength) {
+            var missingChars = this.props.secretCodeLength - this.state.codeGuess.length;
+            var message = "The secret code is " + this.props.secretCodeLength + " digits long." +
+                          " Please add " + missingChars + " more digits.";
+            return this.setState({
+              message: message
+            });
+          }
 
           this.props.makeGuess(this.state.codeGuess);
+          this.setState({ message: null });
         },
         changeGuess: function(e) {
           this.setState({
@@ -79,6 +88,7 @@
 
           return (
             <div className="well">
+              <h4 className="text-danger">{this.state.message}</h4>
               <form onSubmit={this.handleGuess}>
                 <div className="form-group">
                   <div className="col-xs-8">
@@ -101,7 +111,7 @@
           if (this.props.is("starting")) return null;
 
           var guessesRemaining  = this.props.maxGuesses - this.props.guessHistory.length;
-          var pluralizedGuesses = guessesRemaining > 1 ? "guesses" : "guess";
+          var pluralizedGuesses = guessesRemaining !== 1 ? "guesses" : "guess";
 
           return (
             <div id="guess-panel">
